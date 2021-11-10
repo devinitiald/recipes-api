@@ -1,37 +1,26 @@
-// Recipes API
-//
-// This is a sample recipes API. You can find out
-// more about the API at
-// https://github.com/PacktPublishing/BuildingDistributed-Applications-in-Gin.
-//
-// Schemes: http
-// Host: localhost:8080
-// BasePath: /
-// Version: 1.0.0
-// Contact: Mohamed Labouardy
-// <mohamed@labouardy.com> https://labouardy.com
-//
-// Consumes:
-// - application/json
-//
-// Produces:
-// - application/json
-// swagger:meta
-
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"context"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/xid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var recipes []Recipe
+var collection *mongo.Collection
+var ctx context.Context
+var err error
+var client *mongo.Client
 
 type Recipe struct {
 	ID           string    `json:"id"`
@@ -40,6 +29,22 @@ type Recipe struct {
 	Ingredients  []string  `json:"ingredients"`
 	Instructions []string  `json:"instructions"`
 	PublishedAt  time.Time `json:"publishedAt"`
+}
+
+func ListRecipesHandler(c *gin.Context) {
+	cur, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer cur.Close(ctx)
+	recipes := make([]Recipe, 0)
+	for cur.Next(ctx) {
+		var recipe Recipe
+		cur.Decode(&recipe)
+		recipes = append(recipes, recipe)
+	}
+	c.JSON(http.StatusOK, recipes)
 }
 
 // POST ENDPOINT
@@ -55,18 +60,6 @@ func NewRecipeHandler(c *gin.Context) {
 	recipes = append(recipes, recipe)
 	c.JSON(http.StatusOK, recipe)
 
-}
-
-// swagger:operation GET /recipes recipes listRecipes
-// Returns list of recipes
-// ---
-// produces:
-// - application/json
-// responses:
-//     '200':
-//         description: Successful operation
-func ListRecipesHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, recipes)
 }
 
 // UPDATE ENDPOINT
@@ -131,9 +124,27 @@ func SearchRecipesHandler(c *gin.Context) {
 }
 
 func init() {
-	recipes = make([]Recipe, 0)
-	file, _ := ioutil.ReadFile("recipes.json")
-	_ = json.Unmarshal([]byte(file), &recipes)
+	// recipes = make([]Recipe, 0)
+	// file, _ := ioutil.ReadFile("recipes.json")
+	// _ = json.Unmarshal([]byte(file), &recipes)
+
+	ctx = context.Background()
+	client, err = mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("MONGO_URI")))
+	if err = client.Ping(context.TODO(), readpref.Primary()); err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Connected to MongoDB")
+
+	// var listOfRecipes []interface{}
+	// for _, recipe := range recipes {
+	// 	listOfRecipes = append(listOfRecipes, recipe)
+	// }
+	// collection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("recipes")
+	// InsertManyResult, err := collection.InsertMany(ctx, listOfRecipes)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// log.Println("Inserted recipes: ", len(InsertManyResult.InsertedIDs))
 }
 
 func main() {
