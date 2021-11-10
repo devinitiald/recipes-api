@@ -1,3 +1,23 @@
+// Recipes API
+//
+// This is a sample recipes API. You can find out
+// more about the API at
+// https://github.com/PacktPublishing/BuildingDistributed-Applications-in-Gin.
+//
+// Schemes: http
+// Host: localhost:8080
+// BasePath: /
+// Version: 1.0.0
+// Contact: Mohamed Labouardy
+// <mohamed@labouardy.com> https://labouardy.com
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+// swagger:meta
+
 package main
 
 import (
@@ -37,7 +57,14 @@ func NewRecipeHandler(c *gin.Context) {
 
 }
 
-// GET LIST ENDPOINT
+// swagger:operation GET /recipes recipes listRecipes
+// Returns list of recipes
+// ---
+// produces:
+// - application/json
+// responses:
+//     '200':
+//         description: Successful operation
 func ListRecipesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, recipes)
 }
